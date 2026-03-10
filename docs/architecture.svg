@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 468"
+     style="max-width:100%;background:white" font-family="system-ui,-apple-system,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#444"/>
+    </marker>
+    <marker id="arr-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#107C10"/>
+    </marker>
+    <marker id="arr-o" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#C2860A"/>
+    </marker>
+
+    <!-- Globe icon -->
+    <symbol id="ic-globe" viewBox="0 0 22 22">
+      <circle cx="11" cy="11" r="9.5" fill="#EBF3FB" stroke="#444" stroke-width="1.5"/>
+      <ellipse cx="11" cy="11" rx="5" ry="9.5" fill="none" stroke="#444" stroke-width="1"/>
+      <line x1="1.5" y1="11" x2="20.5" y2="11" stroke="#444" stroke-width="1"/>
+      <line x1="3" y1="6.5" x2="19" y2="6.5" stroke="#444" stroke-width="0.8"/>
+      <line x1="3" y1="15.5" x2="19" y2="15.5" stroke="#444" stroke-width="0.8"/>
+    </symbol>
+
+    <!-- Azure Load Balancer icon -->
+    <symbol id="ic-lb" viewBox="0 0 22 22">
+      <rect x="1" y="1" width="20" height="20" rx="4" fill="#0078D4"/>
+      <line x1="11" y1="5" x2="11" y2="17" stroke="white" stroke-width="1.8"/>
+      <line x1="5" y1="9" x2="17" y2="9" stroke="white" stroke-width="1.8"/>
+      <path d="M3,11 Q5,14 7,11" fill="none" stroke="white" stroke-width="1.5"/>
+      <path d="M15,11 Q17,14 19,11" fill="none" stroke="white" stroke-width="1.5"/>
+    </symbol>
+
+    <!-- Azure Container Apps icon (blue 2×2 grid) -->
+    <symbol id="ic-aca" viewBox="0 0 22 22">
+      <rect x="1" y="1" width="20" height="20" rx="4" fill="#0078D4"/>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" fill="white" opacity="0.95"/>
+      <rect x="12" y="3" width="7" height="7" rx="1.5" fill="white" opacity="0.7"/>
+      <rect x="3" y="12" width="7" height="7" rx="1.5" fill="white" opacity="0.7"/>
+      <rect x="12" y="12" width="7" height="7" rx="1.5" fill="white" opacity="0.45"/>
+    </symbol>
+
+    <!-- acme-az-aca icon (green 2×2 grid) -->
+    <symbol id="ic-acme" viewBox="0 0 22 22">
+      <rect x="1" y="1" width="20" height="20" rx="4" fill="#107C10"/>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" fill="white" opacity="0.95"/>
+      <rect x="12" y="3" width="7" height="7" rx="1.5" fill="white" opacity="0.7"/>
+      <rect x="3" y="12" width="7" height="7" rx="1.5" fill="white" opacity="0.7"/>
+      <rect x="12" y="12" width="7" height="7" rx="1.5" fill="white" opacity="0.45"/>
+    </symbol>
+
+    <!-- Azure Key Vault icon (blue background, padlock) -->
+    <symbol id="ic-kv" viewBox="0 0 22 22">
+      <rect x="1" y="1" width="20" height="20" rx="4" fill="#0E7DC2"/>
+      <rect x="5" y="12" width="12" height="8" rx="1.5" fill="white"/>
+      <path d="M7.5,12 L7.5,8.5 Q11,4 14.5,8.5 L14.5,12"
+            fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+      <circle cx="11" cy="16" r="2" fill="#0E7DC2"/>
+      <rect x="10.2" y="16" width="1.6" height="2.8" fill="#0E7DC2"/>
+    </symbol>
+  </defs>
+
+  <!-- ── Internet ──────────────────────────────── -->
+  <use href="#ic-globe" x="22" y="164" width="26" height="26"/>
+  <text x="35" y="204" text-anchor="middle" fill="#323130" font-size="12" font-weight="500">Internet</text>
+
+  <!-- Internet → LB -->
+  <line x1="48" y1="177" x2="87" y2="177" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- ── Load Balancer ─────────────────────────── -->
+  <rect x="89" y="159" width="80" height="38" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5"/>
+  <use href="#ic-lb" x="95" y="164" width="22" height="22"/>
+  <text x="147" y="182" fill="#323130" font-size="12" font-weight="500">LB</text>
+
+  <!-- LB → CA env -->
+  <line x1="169" y1="178" x2="194" y2="178" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- ── Azure Container Apps Environment ──────── -->
+  <rect x="196" y="16" width="492" height="316" rx="10" fill="#EBF3FB" stroke="#0078D4"
+        stroke-width="2" stroke-dasharray="8 4"/>
+  <use href="#ic-aca" x="208" y="25" width="22" height="22"/>
+  <text x="238" y="42" fill="#0078D4" font-size="12" font-weight="700">Azure Container Apps Environment</text>
+
+  <!-- Branch at CA env entry: up then split to both UI Apps -->
+  <line x1="196" y1="178" x2="196" y2="95" stroke="#444" stroke-width="1.5"/>
+  <line x1="196" y1="95" x2="218" y2="95" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="196" y1="95" x2="390" y2="95" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- UI App 1 -->
+  <rect x="220" y="62" width="158" height="68" rx="8" fill="white" stroke="#0078D4" stroke-width="1.5"/>
+  <use href="#ic-aca" x="228" y="70" width="22" height="22"/>
+  <text x="299" y="87" text-anchor="middle" fill="#0078D4" font-size="13" font-weight="600">UI App</text>
+  <text x="299" y="107" text-anchor="middle" fill="#605E5C" font-size="11">dev.example.com</text>
+
+  <!-- UI App 2 -->
+  <rect x="392" y="62" width="158" height="68" rx="8" fill="white" stroke="#0078D4" stroke-width="1.5"/>
+  <use href="#ic-aca" x="400" y="70" width="22" height="22"/>
+  <text x="471" y="87" text-anchor="middle" fill="#0078D4" font-size="13" font-weight="600">UI App</text>
+  <text x="471" y="107" text-anchor="middle" fill="#605E5C" font-size="11">prd.example.com</text>
+
+  <!-- acme-az-aca -->
+  <rect x="286" y="174" width="188" height="68" rx="8" fill="white" stroke="#107C10" stroke-width="1.5"/>
+  <use href="#ic-acme" x="294" y="182" width="22" height="22"/>
+  <text x="380" y="200" text-anchor="middle" fill="#107C10" font-size="13" font-weight="600">acme-az-aca</text>
+  <text x="380" y="220" text-anchor="middle" fill="#605E5C" font-size="11">:80 · /healthz</text>
+
+  <!-- ── /.well-known/ challenge route (dashed) ── -->
+  <path d="M129,197 L129,258 L380,258 L380,244"
+        stroke="#444" stroke-width="1.5" fill="none" stroke-dasharray="6 3"
+        marker-end="url(#arr)"/>
+  <text x="84" y="230" text-anchor="middle" fill="#605E5C" font-size="10">/.well-known/</text>
+  <text x="84" y="244" text-anchor="middle" fill="#605E5C" font-size="10">acme-challenge/*</text>
+
+  <!-- ── Azure Key Vault ──────────────────────── -->
+  <rect x="286" y="374" width="188" height="68" rx="8" fill="#FFFBEB" stroke="#D97706" stroke-width="1.5"/>
+  <use href="#ic-kv" x="294" y="382" width="22" height="22"/>
+  <text x="380" y="400" text-anchor="middle" fill="#D97706" font-size="13" font-weight="600">Azure Key Vault</text>
+  <text x="380" y="420" text-anchor="middle" fill="#605E5C" font-size="11">wildcard-cert (PFX)</text>
+
+  <!-- acme-az-aca → Key Vault (PFX upload) -->
+  <line x1="380" y1="242" x2="380" y2="372"
+        stroke="#107C10" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <text x="393" y="313" fill="#107C10" font-size="11">PFX upload</text>
+
+  <!-- ── Cert binding (outside right of CA env) ── -->
+  <path d="M474,408 L714,408 L714,50 L690,50"
+        stroke="#C2860A" stroke-width="1.5" fill="none" stroke-dasharray="6 3"
+        marker-end="url(#arr-o)"/>
+  <text x="726" y="235" text-anchor="middle" fill="#C2860A" font-size="11"
+        transform="rotate(-90,726,235)">cert binding</text>
+</svg>

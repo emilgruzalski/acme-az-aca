@@ -1,4 +1,4 @@
-# acme-az-aca
+# ACME for Azure Container Apps
 
 Automated Let's Encrypt SSL certificate management for Azure Key Vault. Runs as a sidecar container in Azure Container Apps, handling HTTP-01 challenge verification, PFX conversion, and certificate renewal.
 

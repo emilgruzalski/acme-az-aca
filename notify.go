@@ -4,60 +4,45 @@ import (
 	"fmt"
 	"log/slog"
 	"net/smtp"
-	"os"
 )
 
-type emailConfig struct {
-	Enabled   bool
-	SMTPHost  string
-	SMTPPort  string
-	Username  string
-	Password  string
-	FromEmail string
-	ToEmail   string
-}
-
-func loadEmailConfig() emailConfig {
-	return emailConfig{
-		Enabled:   os.Getenv("NOTIFY_EMAIL_ENABLED") == "true",
-		SMTPHost:  os.Getenv("SMTP_HOST"),
-		SMTPPort:  envWithDefault("SMTP_PORT", "587"),
-		Username:  os.Getenv("SMTP_USERNAME"),
-		Password:  os.Getenv("SMTP_PASSWORD"),
-		FromEmail: envWithDefault("SMTP_FROM", os.Getenv("EMAIL")),
-		ToEmail:   envWithDefault("SMTP_TO", os.Getenv("EMAIL")),
+// notifyOnError sends an SMTP error notification when enabled, and logs
+// (but does not propagate) any failure delivering it.
+func notifyOnError(cfg config, subject, message string) {
+	if !cfg.NotifyEnabled {
+		return
+	}
+	if err := sendErrorNotification(cfg, subject, message); err != nil {
+		slog.Error("notification failed", "error", err)
 	}
 }
 
-func sendErrorNotification(cfg emailConfig, subject, message string) error {
-	if !cfg.Enabled {
+func sendErrorNotification(cfg config, subject, message string) error {
+	if !cfg.NotifyEnabled {
 		return nil
 	}
-
-	if cfg.SMTPHost == "" || cfg.Username == "" || cfg.Password == "" {
+	if cfg.SMTPHost == "" || cfg.SMTPUsername == "" || cfg.SMTPPassword == "" {
 		return fmt.Errorf("incomplete SMTP configuration")
 	}
 
-	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.SMTPHost)
-
+	auth := smtp.PlainAuth("", cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPHost)
 	body := fmt.Sprintf("Subject: %s\r\n"+
 		"From: %s\r\n"+
 		"To: %s\r\n"+
 		"Content-Type: text/plain; charset=UTF-8\r\n"+
 		"\r\n"+
-		"%s", subject, cfg.FromEmail, cfg.ToEmail, message)
+		"%s", subject, cfg.SMTPFrom, cfg.SMTPTo, message)
 
-	err := smtp.SendMail(
+	if err := smtp.SendMail(
 		cfg.SMTPHost+":"+cfg.SMTPPort,
 		auth,
-		cfg.FromEmail,
-		[]string{cfg.ToEmail},
+		cfg.SMTPFrom,
+		[]string{cfg.SMTPTo},
 		[]byte(body),
-	)
-	if err != nil {
+	); err != nil {
 		return fmt.Errorf("sending notification email: %w", err)
 	}
 
-	slog.Info("Notification email sent", "to", cfg.ToEmail)
+	slog.Info("notification email sent", "to", cfg.SMTPTo)
 	return nil
 }

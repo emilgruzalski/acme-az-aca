@@ -98,6 +98,7 @@ az containerapp create \
 | `AZURE_CERT_NAME` | `wildcard-cert` | Certificate name in Key Vault |
 | `CHECK_INTERVAL` | `24h` | Renewal check interval (Go duration format) |
 | `RENEW_BEFORE_DAYS` | `30` | Days before expiry to trigger renewal |
+| `ACME_CA_URL` | LE production directory | ACME directory URL — point at the LE staging endpoint when testing |
 | `PFX_PASSWORD` | *(empty)* | PFX password |
 | `NOTIFY_EMAIL_ENABLED` | `false` | Enable SMTP error notifications |
 | `SMTP_HOST` | — | SMTP server hostname |
@@ -133,7 +134,7 @@ The identity (managed or SP) is missing the `Key Vault Certificates Officer` rol
 The import itself usually succeeds — check the container logs for `importing certificate`. ACA custom domain binding refresh can take a few minutes after the import.
 
 **Hitting Let's Encrypt rate limits**
-5 failed validations per domain per hour, 5 duplicate certs per week. Test against the staging CA first — change `legoConfig.CADirURL` in `main.go` to `https://acme-staging-v02.api.letsencrypt.org/directory`. Staging certs aren't trusted by browsers but the flow is identical.
+5 failed validations per domain per hour, 5 duplicate certs per week. Test against the staging CA first by setting `ACME_CA_URL=https://acme-staging-v02.api.letsencrypt.org/directory`. Staging certs aren't trusted by browsers but the flow is identical.
 
 ## Security
 

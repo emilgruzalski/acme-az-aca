@@ -8,6 +8,10 @@
 *.so
 *.dylib
 
+# Build output
+/bin/
+/acme-az-aca
+
 # Test binary, built with `go test -c`
 *.test
 

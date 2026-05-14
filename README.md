@@ -1,54 +1,52 @@
-# ACME for Azure Container Apps
+# acme-az-aca
 
-Automated Let's Encrypt SSL certificate management for Azure Key Vault. Runs as a sidecar container in Azure Container Apps, handling HTTP-01 challenge verification, PFX conversion, and certificate renewal.
+Automates Let's Encrypt certificate issuance and renewal for Azure Container Apps. Runs as a sidecar — handles HTTP-01 challenges, converts PEM to PFX in-memory, and imports directly into Azure Key Vault.
 
-## Architecture
+## How it works
 
-The application runs as a long-lived daemon alongside your UI applications in an Azure Container Apps Environment. An ingress rule routes `/.well-known/acme-challenge/*` traffic to this container while the rest goes to your UI apps.
+Runs as a long-lived sidecar alongside your app containers. An ingress rule routes `/.well-known/acme-challenge/*` to this container; everything else hits your apps normally.
 
-![Architecture diagram](docs/architecture.svg)
+```text
+                  ┌─ Azure Container Apps Environment ──────────────┐
+                  │                                                 │
+                  │   UI app (dev.example.com)                      │
+  Internet ─► LB ─┼─► UI app (prd.example.com)                      │
+                  │   acme-az-aca   :80  /healthz                   │
+                  │        │                                        │
+                  │        │ PFX import                             │
+                  │        ▼                                        │
+                  │   Azure Key Vault ◄─── cert binding (ACA reads) │
+                  └─────────────────────────────────────────────────┘
 
-On each cycle (default: every 24 hours) the application:
+  Routing inside the environment:
+    /.well-known/acme-challenge/*   →   acme-az-aca
+    everything else                 →   UI apps
+```
 
-1. **Checks the certificate** in Azure Key Vault — reads expiration date and compares it against the renewal threshold (default: 30 days before expiry). If still valid, skips to sleep.
-2. **Requests a new certificate** from Let's Encrypt via ACME protocol.
-3. **Completes the HTTP-01 challenge** — Let's Encrypt sends a request to `http://<domain>/.well-known/acme-challenge/<token>`, the ingress rule routes it to this container, which responds with the verification token.
-4. **Converts PEM to PFX** — in-memory using a native Go library (no OpenSSL dependency). Supports RSA and ECDSA keys.
-5. **Uploads to Azure Key Vault** — the PFX is base64-encoded and imported via Azure SDK. Container Apps picks up the new certificate for custom domain bindings.
-6. **Sleeps** until the next check interval.
+On each cycle (default: 24h):
 
-If any step fails and email notifications are enabled, the application sends an error report via SMTP and retries on the next cycle.
+1. Check the cert in Key Vault — if it's not expiring within the threshold (default: 30 days), skip and sleep.
+2. Request a new cert from Let's Encrypt via ACME HTTP-01.
+3. Let's Encrypt calls `http://<domain>/.well-known/acme-challenge/<token>` — the ingress routes it here, we respond with the token.
+4. Convert PEM → PFX in-memory (no OpenSSL, handles RSA and ECDSA).
+5. Import the PFX into Key Vault. Container Apps picks it up for custom domain bindings.
 
-## Key features
+If any step fails and SMTP is configured, an error notification goes out and the cycle retries on the next interval.
 
-- Automatic SSL certificate generation using Let's Encrypt
-- Multi-domain support in a single certificate
-- HTTP-01 challenge verification with built-in HTTP server and `/healthz` endpoint
-- In-memory PFX conversion with modern AES-256 encoding (no OpenSSL required)
-- RSA and ECDSA private key support
-- Azure Key Vault integration via Azure SDK for Go (`security/keyvault/azcertificates`)
-- Configurable monitoring interval and renewal threshold
-- Structured logging via `log/slog`
-- Graceful shutdown on SIGINT/SIGTERM
-- Minimal Docker image (~20 MB, distroless, non-root)
-- Optional SMTP error notifications
+## Requirements
 
-## Getting started
+- Azure Key Vault
+- Service Principal or Managed Identity with **Key Vault Certificates Officer** on the vault
+- Port 80 publicly reachable from the internet (Let's Encrypt needs to reach the ingress for HTTP-01)
+- DNS for every domain in `DOMAINS` pointing to the Container Apps Environment load balancer
 
-### Prerequisites
-
-- An Azure subscription — [create one for free](https://azure.microsoft.com/free/)
-- An Azure Key Vault instance
-- A Service Principal or Managed Identity with the **Key Vault Certificates Officer** role on the Key Vault
-- Docker
-
-### Build
+## Build
 
 ```bash
 docker build -t acme-az-aca .
 ```
 
-### Run locally
+## Run locally
 
 ```bash
 docker run -d \
@@ -59,9 +57,10 @@ docker run -d \
   -e AZURE_CLIENT_ID="<client-id>" \
   -e AZURE_CLIENT_SECRET="<client-secret>" \
   -e AZURE_KEYVAULT_NAME="<keyvault-name>" \
-  --name acme-az-aca \
   acme-az-aca
 ```
+
+Port 80 must be publicly reachable for the ACME challenge — running locally without a tunnel won't get you a cert, but is fine for testing startup and the `/healthz` endpoint.
 
 ## Deploy to Azure Container Apps
 
@@ -80,79 +79,69 @@ az containerapp create \
 ```
 
 > [!IMPORTANT]
-> Configure an ingress rule in your Container Apps Environment to route `/.well-known/acme-challenge/*` traffic to the `acme-az-aca` container. Without this, HTTP-01 challenges will fail.
+> Set up the ingress rule routing `/.well-known/acme-challenge/*` to this container **before** the first certificate run. Without it the HTTP-01 challenge times out and you'll burn Let's Encrypt rate limits (5 failed validations/domain/hour, 5 duplicate certs/week).
 
 ## Configuration
 
-### Required environment variables
+### Required
 
 | Variable | Description |
-|---|---|
-| `DOMAINS` | Comma-separated list of domains (e.g. `dev.example.com,prd.example.com`) |
+| --- | --- |
+| `DOMAINS` | Comma-separated domain list (e.g. `dev.example.com,prd.example.com`) |
 | `EMAIL` | Contact email for Let's Encrypt account registration |
 | `AZURE_KEYVAULT_NAME` | Azure Key Vault name |
 
-### Optional environment variables
+### Optional
 
 | Variable | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `AZURE_CERT_NAME` | `wildcard-cert` | Certificate name in Key Vault |
-| `CHECK_INTERVAL` | `24h` | How often to check for certificate renewal (Go duration format) |
-| `RENEW_BEFORE_DAYS` | `30` | Days before expiration to trigger renewal |
-| `PFX_PASSWORD` | *(empty)* | Password for PFX certificate file |
+| `CHECK_INTERVAL` | `24h` | Renewal check interval (Go duration format) |
+| `RENEW_BEFORE_DAYS` | `30` | Days before expiry to trigger renewal |
+| `PFX_PASSWORD` | *(empty)* | PFX password |
 | `NOTIFY_EMAIL_ENABLED` | `false` | Enable SMTP error notifications |
 | `SMTP_HOST` | — | SMTP server hostname |
-| `SMTP_PORT` | `587` | SMTP server port |
-| `SMTP_USERNAME` | — | SMTP authentication username |
-| `SMTP_PASSWORD` | — | SMTP authentication password |
-| `SMTP_FROM` | Same as `EMAIL` | Notification sender address |
-| `SMTP_TO` | Same as `EMAIL` | Notification recipient address |
+| `SMTP_PORT` | `587` | SMTP port |
+| `SMTP_USERNAME` | — | SMTP username |
+| `SMTP_PASSWORD` | — | SMTP password |
+| `SMTP_FROM` | `$EMAIL` | Notification sender address |
+| `SMTP_TO` | `$EMAIL` | Notification recipient address |
 
 ### Authentication
 
-The application uses [`DefaultAzureCredential`](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#NewDefaultAzureCredential), which supports multiple authentication methods in order of priority:
+Uses [`DefaultAzureCredential`](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#NewDefaultAzureCredential). In Container Apps, assign a managed identity with Key Vault Certificates Officer — no credentials in env vars needed. For local runs or CI, fall back to a Service Principal via `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
 
-| Method | Required variables |
-|---|---|
-| Managed Identity (recommended for Container Apps) | None — assigned automatically |
-| Service Principal | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` |
-
-### Email notifications
-
-Error notifications are disabled by default. To enable:
+### SMTP notifications
 
 ```bash
 NOTIFY_EMAIL_ENABLED=true
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-specific-password
+SMTP_PASSWORD=your-app-password   # App Password, not your account password
 ```
-
-> [!NOTE]
-> When using Gmail, enable 2-factor authentication and generate an App Password. Use the App Password as `SMTP_PASSWORD`.
-
-Notifications are sent for certificate processing errors, ACME challenge failures, and Key Vault upload failures.
 
 ## Troubleshooting
 
-| Problem | Possible cause | Resolution |
-|---|---|---|
-| HTTP-01 challenge fails | Port 80 not accessible from the internet | Verify ingress rule routes `/.well-known/acme-challenge/*` to this container |
-| HTTP-01 challenge fails | DNS not pointing to the load balancer | Verify DNS records for all domains in `DOMAINS` |
-| Key Vault access denied | Insufficient permissions | Ensure the Service Principal has `get` and `import` certificate permissions |
-| Certificate not appearing | Upload error | Check container logs for `importing certificate` errors |
-| Container restarting | Health check misconfigured | Point the health probe to `/healthz` on port 80 |
+**HTTP-01 challenge fails**
+Let's Encrypt couldn't reach port 80. Check that the `/.well-known/acme-challenge/*` ingress rule is in place, DNS for all domains resolves to the load balancer, and nothing is blocking inbound port 80.
 
-## Security considerations
+**Key Vault access denied**
+The identity (managed or SP) is missing the `Key Vault Certificates Officer` role assignment on the vault. If the vault is still on the legacy access policy model, the equivalent permissions are `get` and `import` on certificates.
 
-- The container runs as `nonroot` user in a distroless image with no shell
-- Port 80 must be accessible from the internet for ACME challenges only during verification
-- Store secrets using Azure Key Vault references or Container Apps secrets — avoid plaintext in container configuration
-- Use Managed Identity instead of Service Principal credentials where possible
-- Rotate Service Principal credentials regularly
-- Monitor Key Vault audit logs for certificate operations
+**Certificate not updating in Container Apps**
+The import itself usually succeeds — check the container logs for `importing certificate`. ACA custom domain binding refresh can take a few minutes after the import.
+
+**Hitting Let's Encrypt rate limits**
+5 failed validations per domain per hour, 5 duplicate certs per week. Test against the staging CA first — change `legoConfig.CADirURL` in `main.go` to `https://acme-staging-v02.api.letsencrypt.org/directory`. Staging certs aren't trusted by browsers but the flow is identical.
+
+## Security
+
+- Runs as `nonroot` in a distroless image — no shell, no package manager
+- Prefer Managed Identity over Service Principal credentials
+- Pass secrets via Container Apps secrets or Key Vault references, not plain env vars
+- Port 80 only needs to be reachable while Let's Encrypt is actively verifying challenges
 
 ## License
 
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE).

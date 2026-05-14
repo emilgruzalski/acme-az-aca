@@ -4,19 +4,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-03-10
+## [1.1.0] - 2026-05-14
 
 ### Added
 
-- Automatic Let's Encrypt certificate management via ACME HTTP-01 challenge
-- Multi-domain support in a single certificate (Subject Alternative Names)
-- Built-in HTTP server on port 80 for challenge verification and `/healthz` health endpoint
-- Azure Key Vault integration — checks expiration date, imports renewed PFX certificate
-- In-memory PEM-to-PFX conversion using `go-pkcs12` with modern AES-256-CBC/SHA-256 encoding (no OpenSSL dependency)
-- Support for both RSA (PKCS1/PKCS8) and ECDSA (PKCS8/SEC1) private keys
-- Configurable renewal threshold (`RENEW_BEFORE_DAYS`, default 30 days) and check interval (`CHECK_INTERVAL`, default 24h)
-- Graceful shutdown on `SIGINT`/`SIGTERM` with 5-second drain timeout
-- Optional SMTP error notifications (`NOTIFY_EMAIL_ENABLED`)
-- Structured logging via `log/slog` (Go standard library)
-- Minimal distroless Docker image (~20 MB, non-root user)
-- Azure SDK `security/keyvault/azcertificates` v1.4.0 with `DefaultAzureCredential` support (Managed Identity and Service Principal)
+- `ACME_CA_URL` env var — switch between LE production and staging without a rebuild
+- `Makefile` (build, test, vet, fmt, tidy, docker, clean)
+- `ReadHeaderTimeout` on the HTTP challenge listener
+
+### Changed
+
+- Config loading uses `kelseyhightower/envconfig` (struct tags, single `config` struct)
+- Sources split per concern: `config.go`, `acme.go`, `main.go`
+- HTTP server errors flow through a channel instead of `os.Exit` from a goroutine
+
+### Removed
+
+- `docs/architecture.svg` (replaced by an inline ASCII diagram in the README)
+- Bespoke env helpers and the separate `emailConfig` type
+- Duplicate `ENV` defaults from the Dockerfile and the stale legacy Azure SDK dependency
+
+## [1.0.0] - 2026-03-10
+
+Initial release.
+
+- Let's Encrypt issuance and renewal via ACME HTTP-01
+- In-memory PEM-to-PFX conversion (RSA and ECDSA), no OpenSSL dependency
+- Azure Key Vault import via `DefaultAzureCredential` (Managed Identity or Service Principal)
+- Optional SMTP error notifications
+- Distroless non-root image, structured `log/slog` output

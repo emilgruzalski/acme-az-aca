@@ -12,15 +12,6 @@ FROM gcr.io/distroless/static:nonroot
 
 COPY --from=builder /acme-az-aca /acme-az-aca
 
-# Certificate management configuration
-ENV CHECK_INTERVAL=24h
-ENV RENEW_BEFORE_DAYS=30
-ENV AZURE_CERT_NAME="wildcard-cert"
-
-# Email notification configuration (optional)
-ENV NOTIFY_EMAIL_ENABLED="false"
-ENV SMTP_PORT="587"
-
 EXPOSE 80
 
 USER nonroot:nonroot

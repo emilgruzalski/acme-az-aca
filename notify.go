@@ -35,7 +35,7 @@ func sendErrorNotification(cfg config, subject, message string) error {
 	if err != nil {
 		return fmt.Errorf("connecting to SMTP server: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if err := conn.SetDeadline(time.Now().Add(smtpTimeout)); err != nil {
 		return fmt.Errorf("setting SMTP deadline: %w", err)
 	}
@@ -44,7 +44,7 @@ func sendErrorNotification(cfg config, subject, message string) error {
 	if err != nil {
 		return fmt.Errorf("SMTP handshake: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if ok, _ := client.Extension("STARTTLS"); ok {
 		if err := client.StartTLS(&tls.Config{ServerName: cfg.SMTPHost}); err != nil {

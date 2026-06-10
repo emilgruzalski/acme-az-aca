@@ -20,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** default `AZURE_CERT_NAME` renamed from `wildcard-cert` to `acme-cert` (HTTP-01 cannot issue wildcard certificates, so the old name was misleading). Deployments relying on the default must set `AZURE_CERT_NAME=wildcard-cert` explicitly to keep the existing certificate binding.
 - A transient Key Vault error during the renewal check now aborts the cycle (notifying and retrying after `RETRY_INTERVAL`) instead of proceeding with an unnecessary reissue that burned Let's Encrypt duplicate-certificate rate limits. A missing certificate (404) still triggers initial issuance.
 - SMTP notifications use an explicit client with a 30s session deadline — `smtp.SendMail` dials with no timeout, so a hung SMTP server could stall the renewal loop indefinitely.
-- Go 1.25, Azure SDK and remaining dependencies upgraded.
 
 ## [1.1.0] - 2026-05-14
 

@@ -1,15 +1,15 @@
 package main
 
 import (
+	"context"
 	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
 )
@@ -17,7 +17,7 @@ import (
 type acmeUser struct {
 	Email        string
 	Registration *registration.Resource
-	key          *rsa.PrivateKey
+	key          crypto.PrivateKey
 }
 
 func (u *acmeUser) GetEmail() string                        { return u.Email }
@@ -62,10 +62,12 @@ func (p *challengeProvider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(keyAuth))
 }
 
-// newACMEClient generates a fresh ACME account key, registers with the
-// configured CA, and wires the HTTP-01 challenge provider.
-func newACMEClient(cfg config) (*lego.Client, *challengeProvider, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+// newACMEClient loads (or creates) the persisted ACME account key, registers
+// with the configured CA, and wires the HTTP-01 challenge provider. ACME
+// account registration is idempotent per key, so re-registering with a
+// persisted key resolves to the existing account.
+func newACMEClient(ctx context.Context, cfg config, secrets *azsecrets.Client) (*lego.Client, *challengeProvider, error) {
+	key, err := acmeAccountKey(ctx, secrets, cfg.AccountSecretName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("acme account key: %w", err)
 	}

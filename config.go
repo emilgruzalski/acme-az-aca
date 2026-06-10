@@ -14,11 +14,16 @@ type config struct {
 	KeyVaultName string   `envconfig:"AZURE_KEYVAULT_NAME" required:"true"`
 
 	// Certificate handling
-	CertName        string        `envconfig:"AZURE_CERT_NAME" default:"wildcard-cert"`
+	CertName        string        `envconfig:"AZURE_CERT_NAME" default:"acme-cert"`
 	PFXPassword     string        `envconfig:"PFX_PASSWORD"`
 	CheckInterval   time.Duration `envconfig:"CHECK_INTERVAL" default:"24h"`
+	RetryInterval   time.Duration `envconfig:"RETRY_INTERVAL" default:"1h"`
 	RenewBeforeDays int           `envconfig:"RENEW_BEFORE_DAYS" default:"30"`
 	ACMECAURL       string        `envconfig:"ACME_CA_URL" default:"https://acme-v02.api.letsencrypt.org/directory"`
+
+	// ACME account key persistence; set to "" to disable and register a fresh
+	// account on every start.
+	AccountSecretName string `envconfig:"ACME_ACCOUNT_SECRET_NAME" default:"acme-account-key"`
 
 	// SMTP error notifications (optional)
 	NotifyEnabled bool   `envconfig:"NOTIFY_EMAIL_ENABLED" default:"false"`
@@ -44,6 +49,12 @@ func loadConfig() (config, error) {
 		return cfg, fmt.Errorf("EMAIL is required")
 	case cfg.KeyVaultName == "":
 		return cfg, fmt.Errorf("AZURE_KEYVAULT_NAME is required")
+	case cfg.CheckInterval <= 0:
+		return cfg, fmt.Errorf("CHECK_INTERVAL must be positive, got %s", cfg.CheckInterval)
+	case cfg.RetryInterval <= 0:
+		return cfg, fmt.Errorf("RETRY_INTERVAL must be positive, got %s", cfg.RetryInterval)
+	case cfg.RenewBeforeDays < 0:
+		return cfg, fmt.Errorf("RENEW_BEFORE_DAYS must not be negative, got %d", cfg.RenewBeforeDays)
 	}
 	if cfg.SMTPFrom == "" {
 		cfg.SMTPFrom = cfg.Email

@@ -25,20 +25,24 @@ Runs as a long-lived sidecar alongside your app containers. An ingress rule rout
 
 On each cycle (default: 24h):
 
-1. Check the cert in Key Vault — if it's not expiring within the threshold (default: 30 days), skip and sleep.
+1. Check the cert in Key Vault — renew when it's missing, doesn't cover every domain in `DOMAINS`, or expires within the threshold (default: 30 days); otherwise skip and sleep. A transient Key Vault error aborts the cycle instead of triggering a needless reissue.
 2. Request a new cert from Let's Encrypt via ACME HTTP-01.
 3. Let's Encrypt calls `http://<domain>/.well-known/acme-challenge/<token>` — the ingress routes it here, we respond with the token.
 4. Convert PEM → PFX in-memory (no OpenSSL, handles RSA and ECDSA).
 5. Import the PFX into Key Vault. Container Apps picks it up for custom domain bindings.
 
-If any step fails and SMTP is configured, an error notification goes out and the cycle retries on the next interval.
+If any step fails and SMTP is configured, an error notification goes out and the cycle retries after `RETRY_INTERVAL` (default: 1h) instead of waiting out the full check interval. The outcome of the last cycle is exposed as JSON at `/status`.
+
+The ACME account key is persisted as a Key Vault secret (default name: `acme-account-key`), so restarts reuse the same Let's Encrypt account instead of registering a new one each time — LE rate-limits new registrations per IP.
 
 ## Requirements
 
 - Azure Key Vault
 - Service Principal or Managed Identity with **Key Vault Certificates Officer** on the vault
+- For ACME account persistence (recommended): **Key Vault Secrets Officer** as well — without it the app still works, but registers a fresh LE account on every restart
 - Port 80 publicly reachable from the internet (Let's Encrypt needs to reach the ingress for HTTP-01)
 - DNS for every domain in `DOMAINS` pointing to the Container Apps Environment load balancer
+- Exactly **one replica** — HTTP-01 challenge tokens are held in memory, so a second replica would answer challenges with 404
 
 ## Build
 
@@ -72,6 +76,8 @@ az containerapp create \
   --image <your-registry>/acme-az-aca:latest \
   --target-port 80 \
   --ingress external \
+  --min-replicas 1 \
+  --max-replicas 1 \
   --env-vars \
     DOMAINS="dev.example.com,prd.example.com" \
     EMAIL="admin@example.com" \
@@ -95,8 +101,10 @@ az containerapp create \
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `AZURE_CERT_NAME` | `wildcard-cert` | Certificate name in Key Vault |
+| `AZURE_CERT_NAME` | `acme-cert` | Certificate name in Key Vault |
+| `ACME_ACCOUNT_SECRET_NAME` | `acme-account-key` | Key Vault secret holding the ACME account key; set empty to disable persistence |
 | `CHECK_INTERVAL` | `24h` | Renewal check interval (Go duration format) |
+| `RETRY_INTERVAL` | `1h` | Retry delay after a failed cycle (capped at `CHECK_INTERVAL`) |
 | `RENEW_BEFORE_DAYS` | `30` | Days before expiry to trigger renewal |
 | `ACME_CA_URL` | LE production directory | ACME directory URL — point at the LE staging endpoint when testing |
 | `PFX_PASSWORD` | *(empty)* | PFX password |
@@ -110,7 +118,7 @@ az containerapp create \
 
 ### Authentication
 
-Uses [`DefaultAzureCredential`](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#NewDefaultAzureCredential). In Container Apps, assign a managed identity with Key Vault Certificates Officer — no credentials in env vars needed. For local runs or CI, fall back to a Service Principal via `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
+Uses [`DefaultAzureCredential`](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#NewDefaultAzureCredential). In Container Apps, assign a managed identity with Key Vault Certificates Officer (plus Key Vault Secrets Officer for ACME account persistence) — no credentials in env vars needed. For local runs or CI, fall back to a Service Principal via `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
 
 ### SMTP notifications
 
@@ -128,7 +136,10 @@ SMTP_PASSWORD=your-app-password   # App Password, not your account password
 Let's Encrypt couldn't reach port 80. Check that the `/.well-known/acme-challenge/*` ingress rule is in place, DNS for all domains resolves to the load balancer, and nothing is blocking inbound port 80.
 
 **Key Vault access denied**
-The identity (managed or SP) is missing the `Key Vault Certificates Officer` role assignment on the vault. If the vault is still on the legacy access policy model, the equivalent permissions are `get` and `import` on certificates.
+The identity (managed or SP) is missing the `Key Vault Certificates Officer` role assignment on the vault. If the vault is still on the legacy access policy model, the equivalent permissions are `get` and `import` on certificates. A warning about the ACME account key means the identity additionally lacks `Key Vault Secrets Officer` (`get`/`set` on secrets) — renewal still works, but each restart registers a new LE account.
+
+**Is it healthy right now?**
+`GET /status` returns the outcome of the last renewal cycle as JSON (`healthy`, `last_check`, `last_success`, `last_error`). `/healthz` is a pure liveness probe and always returns 200 while the process runs.
 
 **Certificate not updating in Container Apps**
 The import itself usually succeeds — check the container logs for `importing certificate`. ACA custom domain binding refresh can take a few minutes after the import.

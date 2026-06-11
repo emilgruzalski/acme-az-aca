@@ -1,5 +1,7 @@
 # acme-az-aca
 
+[![CI](https://github.com/emilgruzalski/acme-az-aca/actions/workflows/ci.yml/badge.svg)](https://github.com/emilgruzalski/acme-az-aca/actions/workflows/ci.yml)
+
 Automates Let's Encrypt certificate issuance and renewal for Azure Container Apps. Runs as a sidecar — handles HTTP-01 challenges, converts PEM to PFX in-memory, and imports directly into Azure Key Vault.
 
 ## How it works
@@ -46,6 +48,14 @@ The ACME account key is persisted as a Key Vault secret (default name: `acme-acc
 
 ## Build
 
+Release images are published to GitHub Container Registry on `v*` tags:
+
+```bash
+docker pull ghcr.io/emilgruzalski/acme-az-aca:latest
+```
+
+Or build locally:
+
 ```bash
 docker build -t acme-az-aca .
 ```
@@ -73,7 +83,7 @@ az containerapp create \
   --name acme-az-aca \
   --resource-group mygroup \
   --environment myenv \
-  --image <your-registry>/acme-az-aca:latest \
+  --image ghcr.io/emilgruzalski/acme-az-aca:latest \
   --target-port 80 \
   --ingress external \
   --min-replicas 1 \
@@ -153,6 +163,27 @@ The import itself usually succeeds — check the container logs for `importing c
 - Prefer Managed Identity over Service Principal credentials
 - Pass secrets via Container Apps secrets or Key Vault references, not plain env vars
 - Port 80 only needs to be reachable while Let's Encrypt is actively verifying challenges
+- Release images carry SBOM and provenance attestations and are signed with [cosign](https://github.com/sigstore/cosign) (keyless, GitHub OIDC):
+
+```bash
+cosign verify ghcr.io/emilgruzalski/acme-az-aca:latest \
+  --certificate-identity-regexp 'https://github.com/emilgruzalski/acme-az-aca/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+## Development
+
+Plain Go tooling, no build system:
+
+```bash
+go test -race -cover ./...   # tests
+go vet ./...                 # static analysis
+gofmt -l .                   # formatting check
+golangci-lint run            # lint (CI pins golangci-lint v2)
+go build .                   # binary
+```
+
+CI ([ci.yml](.github/workflows/ci.yml)) runs the same checks plus a `go mod tidy` check, `govulncheck`, and a Docker build gated by a Trivy CVE scan on every push and PR. On `v*` tags the image is pushed to ghcr.io with an SPDX SBOM and provenance attestations, signed with cosign, and a GitHub Release is created with the changelog section as notes and the SBOM attached. A separate weekly workflow ([scan.yml](.github/workflows/scan.yml)) rescans the **published** image and the Go dependencies, so CVEs discovered after a release surface without a commit.
 
 ## License
 

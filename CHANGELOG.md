@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-11
+
+### Added
+
+- CI security gates: `govulncheck` and a gating Trivy image scan (HIGH/CRITICAL) on every run; results are uploaded as SARIF to the GitHub Security tab.
+- Release images get an SPDX SBOM, BuildKit SBOM/provenance attestations, and a keyless cosign signature.
+- Weekly `scan.yml` workflow rescanning the published ghcr.io image and the Go dependencies, so CVEs discovered after a release surface without a commit.
+- Release automation: pushing a `v*` tag creates a GitHub Release with the matching CHANGELOG section as notes and the SPDX SBOM attached as an asset.
+
+### Changed
+
+- CI is a repo-local workflow tailored to this app (gofmt and `go mod tidy` checks, vet, golangci-lint v2, race tests, Docker build with image push to ghcr.io on `v*` tags) instead of the shared reusable workflow.
+- Go 1.26.4; all dependencies upgraded, notably `lego` v4.22 → v4.35 and the Azure Key Vault SDKs to v1.5.0.
+- Dockerfile base images are pinned by digest (Dependabot keeps the digests fresh) and the binary is built with `-trimpath` for reproducibility.
+
+### Removed
+
+- `Makefile` — CI is self-contained now; locally the equivalents are `gofmt -l .`, `go vet ./...`, `golangci-lint run`, `go test -race -cover ./...`, and `go build`.
+
 ## [1.2.0] - 2026-06-10
 
 ### Added

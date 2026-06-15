@@ -48,7 +48,7 @@ The ACME account key is persisted as a Key Vault secret (default name: `acme-acc
 
 ## Build
 
-Release images are published to GitHub Container Registry on `v*` tags:
+Release images are published to GitHub Container Registry on `v*` tags, as a multi-arch manifest for `linux/amd64` and `linux/arm64` (Docker picks the right one automatically):
 
 ```bash
 docker pull ghcr.io/emilgruzalski/acme-az-aca:latest

@@ -124,7 +124,7 @@ jobs:
           category: built-image
 
       - name: Generate SBOM (SPDX, uploaded as workflow artifact)
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           image: acme-az-aca:scan
           format: spdx-json

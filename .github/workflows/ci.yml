@@ -55,6 +55,10 @@ jobs:
       - name: Scan Go dependencies for known vulnerabilities
         uses: golang/govulncheck-action@v1.1.0
         with:
+          # The action defaults go-version-input to 'stable', and setup-go lets
+          # go-version win over go-version-file. Blank it so the scan runs on
+          # the toolchain in go.mod — the one the shipped binary is built with.
+          go-version-input: ''
           go-version-file: go.mod
 
   image:
@@ -112,6 +116,9 @@ jobs:
           output: trivy.sarif
           exit-code: '1'
           severity: HIGH,CRITICAL
+          # Without this the action drops the severity filter for SARIF output
+          # and exit-code then fails the job on any finding at any severity.
+          limit-severities-for-sarif: true
           ignore-unfixed: true
 
       # Upload even when the scan gate fails, so findings show up in the

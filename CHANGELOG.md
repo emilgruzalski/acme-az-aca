@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped `github.com/Azure/azure-sdk-for-go/sdk/azcore` from `v1.22.0` to `v1.23.1` and `sdk/azidentity` from `v1.13.1` to `v1.14.1`; `microsoft-authentication-library-for-go` `v1.7.2` → `v1.8.0` and `golang.org/x/net` `v0.57.0` → `v0.58.0` come along as their requirements. The Key Vault SDKs (`azcertificates`, `azsecrets` `v1.5.0`) are already current.
 - CI: `golangci-lint` `v2.11.4` → `v2.13.2`, `anchore/sbom-action` `v0.24.0` → `v0.24.2`. Every other action in `ci.yml` and `scan.yml` was checked against its latest release and is already current (`checkout@v7`, `setup-go@v7`, `golangci-lint-action@v9`, `govulncheck-action@v1.1.0`, `setup-buildx-action@v4`, `login-action@v4`, `metadata-action@v6`, `build-push-action@v7`, `trivy-action@v0.36.0`, `codeql-action/upload-sarif@v4`, `cosign-installer@v4.1.2`, `download-artifact@v8`).
 
+### Fixed
+
+- CI: the Trivy image gate now enforces `severity: HIGH,CRITICAL` as written. With `format: sarif` the action was silently dropping the severity filter unless `limit-severities-for-sarif` is set, so `exit-code: 1` failed the job on any finding at any severity — which is what blocked v1.2.3 on two MEDIUMs. Trade-off: the SARIF uploaded to the Security tab is now limited to HIGH/CRITICAL too. Applies to `ci.yml` and `scan.yml`.
+- CI: `govulncheck` now runs on the toolchain from `go.mod`. `golang/govulncheck-action` defaults `go-version-input` to `stable`, which `setup-go` prefers over `go-version-file`; blanking it makes the scan use the Go the shipped binary is actually built with instead of whatever is newest. Applies to `ci.yml` and `scan.yml`.
+
 ## [1.2.3] - 2026-09-10
 
 ### Changed

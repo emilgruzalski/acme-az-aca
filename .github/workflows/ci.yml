@@ -43,7 +43,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.11.4
+          version: v2.13.2
 
       - name: Test
         run: go test -race -cover ./...
@@ -124,7 +124,7 @@ jobs:
           category: built-image
 
       - name: Generate SBOM (SPDX, uploaded as workflow artifact)
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           image: acme-az-aca:scan
           format: spdx-json

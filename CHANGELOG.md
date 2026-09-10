@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-09-10
+
+### Changed
+
+- Go 1.26.8 → 1.27.1. The Dockerfile builder moves to `golang:1.27` (Dependabot, pinned to the digest carrying 1.27.1) and the `go` directive follows it, so the `test` job, the image build and local builds all agree on the toolchain.
+- Bumped `github.com/Azure/azure-sdk-for-go/sdk/azcore` from `v1.22.0` to `v1.23.1` and `sdk/azidentity` from `v1.13.1` to `v1.14.1`; `microsoft-authentication-library-for-go` `v1.7.2` → `v1.8.0` and `golang.org/x/net` `v0.57.0` → `v0.58.0` come along as their requirements. The Key Vault SDKs (`azcertificates`, `azsecrets` `v1.5.0`) are already current.
+- CI: `golangci-lint` `v2.11.4` → `v2.13.2`, `anchore/sbom-action` `v0.24.0` → `v0.24.2`. Every other action in `ci.yml` and `scan.yml` was checked against its latest release and is already current (`checkout@v7`, `setup-go@v7`, `golangci-lint-action@v9`, `govulncheck-action@v1.1.0`, `setup-buildx-action@v4`, `login-action@v4`, `metadata-action@v6`, `build-push-action@v7`, `trivy-action@v0.36.0`, `codeql-action/upload-sarif@v4`, `cosign-installer@v4.1.2`, `download-artifact@v8`).
+
 ## [1.2.3] - 2026-09-10
 
 ### Changed

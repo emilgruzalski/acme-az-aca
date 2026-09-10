@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2026-09-10
+
+### Changed
+
+- Runtime base image `gcr.io/distroless/static:nonroot` digest `963fa6c` → `f7f8f72` (Dependabot). The only package change is `base-files` `13.8+deb13u5` → `13.8+deb13u6`, i.e. the Debian 13.5 → 13.6 point release; `netbase`, `media-types`, `tzdata` (2026b) and the CA bundle (150 certificates, identical hash) are unchanged, so nothing the ACME client trusts or resolves moves.
+
 ## [1.2.4] - 2026-09-10
 
 ### Changed

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-09-10
+
+### Changed
+
+- Bumped `software.sslmate.com/src/go-pkcs12` from `v0.7.2` to `v0.7.3`.
+- Bumped `golang.org/x/text` from `v0.38.0` to `v0.41.0`, fixing [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970) (infinite loop on invalid input in `norm`), reachable via `lego`'s certificate `Obtain` path.
+- Bumped `golang.org/x/crypto` from `v0.53.0` to `v0.56.0`, clearing three `x/crypto/ssh` CVEs the Trivy image gate reports: [CVE-2026-56854](https://avd.aquasec.com/nvd/cve-2026-56854) (CRITICAL, auth bypass from unenforced source-address restrictions), plus [CVE-2026-56855](https://avd.aquasec.com/nvd/cve-2026-56855) and [CVE-2026-78662](https://avd.aquasec.com/nvd/cve-2026-78662) (MEDIUM, denial of service). This code never calls `ssh`, so `govulncheck` treats all three as unreachable, but the module is recorded in the binary's build info and Trivy gates on module version, not reachability. The rest of the `golang.org/x/*` set moves with it: `mod` `v0.38.0`, `net` `v0.57.0`, `sync` `v0.22.0`, `sys` `v0.47.0`, `tools` `v0.48.0`.
+- Go 1.26.4 → 1.26.8, clearing six standard-library advisories reachable from this code: [GO-2026-6218](https://pkg.go.dev/vuln/GO-2026-6218), [GO-2026-6090](https://pkg.go.dev/vuln/GO-2026-6090), [GO-2026-6089](https://pkg.go.dev/vuln/GO-2026-6089) and [GO-2026-5026](https://pkg.go.dev/vuln/GO-2026-5026) in `net/http`, [GO-2026-6088](https://pkg.go.dev/vuln/GO-2026-6088) in `encoding/xml`, and [GO-2026-5972](https://pkg.go.dev/vuln/GO-2026-5972) in `encoding/asn1`. The `test` job and the image build take their toolchain from `go.mod`, so the `go` directive governs both. Note the `govulncheck` job does not: `golang/govulncheck-action` defaults `go-version` to `stable`, which overrides the `go-version-file: go.mod` the workflow passes, so that job runs on whatever Go is current (1.27.1 today) no matter what this directive says.
+- Dockerfile `golang:1.26` builder digest refreshed to the image carrying Go 1.26.8, keeping the pinned base in step with the `go` directive so image builds don't fetch a toolchain at build time.
+
+
 ## [1.2.2] - 2026-06-15
 
 ### Added

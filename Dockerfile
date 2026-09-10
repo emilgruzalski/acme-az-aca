@@ -1,6 +1,6 @@
 # Builder runs natively on the build host's arch; Go cross-compiles to the
 # target arch (CGO_ENABLED=0), so no QEMU emulation is needed.
-FROM --platform=$BUILDPLATFORM golang:1.26@sha256:3c3e25a4da13fd0478eed2df1eb35a0e667094a7124d3993a6a1d30f71c17e79 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27@sha256:f44f6e88636cfb311f9ebace870ded69d943f227bb3cb27d32ffd84ea18c43ea AS builder
 
 ARG TARGETOS
 ARG TARGETARCH

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bumped `software.sslmate.com/src/go-pkcs12` from `v0.7.2` to `v0.7.3`.
+- Bumped `golang.org/x/text` from `v0.38.0` to `v0.39.0`, fixing [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970) (infinite loop on invalid input in `norm`), reachable via `lego`'s certificate `Obtain` path. Pulls `golang.org/x/tools` to `v0.47.0` as a module-graph requirement.
+- Go 1.26.4 → 1.26.8, clearing six standard-library advisories reachable from this code: [GO-2026-6218](https://pkg.go.dev/vuln/GO-2026-6218), [GO-2026-6090](https://pkg.go.dev/vuln/GO-2026-6090), [GO-2026-6089](https://pkg.go.dev/vuln/GO-2026-6089) and [GO-2026-5026](https://pkg.go.dev/vuln/GO-2026-5026) in `net/http`, [GO-2026-6088](https://pkg.go.dev/vuln/GO-2026-6088) in `encoding/xml`, and [GO-2026-5972](https://pkg.go.dev/vuln/GO-2026-5972) in `encoding/asn1`. CI derives its toolchain from `go.mod`, so the `go` directive is what gates these.
+- Dockerfile `golang:1.26` builder digest refreshed to the image carrying Go 1.26.8, keeping the pinned base in step with the `go` directive so image builds don't fetch a toolchain at build time.
 
 
 ## [1.2.2] - 2026-06-15

@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-09-10
+
+### Changed
+
+- Go 1.26.8 → 1.27.1. The Dockerfile builder moves to `golang:1.27` (Dependabot, pinned to the digest carrying 1.27.1) and the `go` directive follows it, so the `test` job, the image build and local builds all agree on the toolchain.
+- Bumped `github.com/Azure/azure-sdk-for-go/sdk/azcore` from `v1.22.0` to `v1.23.1` and `sdk/azidentity` from `v1.13.1` to `v1.14.1`; `microsoft-authentication-library-for-go` `v1.7.2` → `v1.8.0` and `golang.org/x/net` `v0.57.0` → `v0.58.0` come along as their requirements. The Key Vault SDKs (`azcertificates`, `azsecrets` `v1.5.0`) are already current.
+- CI: `golangci-lint` `v2.11.4` → `v2.13.2`, `anchore/sbom-action` `v0.24.0` → `v0.24.2`. Every other action in `ci.yml` and `scan.yml` was checked against its latest release and is already current (`checkout@v7`, `setup-go@v7`, `golangci-lint-action@v9`, `govulncheck-action@v1.1.0`, `setup-buildx-action@v4`, `login-action@v4`, `metadata-action@v6`, `build-push-action@v7`, `trivy-action@v0.36.0`, `codeql-action/upload-sarif@v4`, `cosign-installer@v4.1.2`, `download-artifact@v8`).
+
+### Fixed
+
+- CI: the Trivy image gate now enforces `severity: HIGH,CRITICAL` as written. With `format: sarif` the action was silently dropping the severity filter unless `limit-severities-for-sarif` is set, so `exit-code: 1` failed the job on any finding at any severity — which is what blocked v1.2.3 on two MEDIUMs. Trade-off: the SARIF uploaded to the Security tab is now limited to HIGH/CRITICAL too. Applies to `ci.yml` and `scan.yml`.
+- CI: `govulncheck` now runs on the toolchain from `go.mod`. `golang/govulncheck-action` defaults `go-version-input` to `stable`, which `setup-go` prefers over `go-version-file`; blanking it makes the scan use the Go the shipped binary is actually built with instead of whatever is newest. Applies to `ci.yml` and `scan.yml`.
+
+## [1.2.3] - 2026-09-10
+
+### Changed
+
+- Bumped `software.sslmate.com/src/go-pkcs12` from `v0.7.2` to `v0.7.3`.
+- Bumped `golang.org/x/text` from `v0.38.0` to `v0.41.0`, fixing [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970) (infinite loop on invalid input in `norm`), reachable via `lego`'s certificate `Obtain` path.
+- Bumped `golang.org/x/crypto` from `v0.53.0` to `v0.56.0`, clearing three `x/crypto/ssh` CVEs the Trivy image gate reports: [CVE-2026-56854](https://avd.aquasec.com/nvd/cve-2026-56854) (CRITICAL, auth bypass from unenforced source-address restrictions), plus [CVE-2026-56855](https://avd.aquasec.com/nvd/cve-2026-56855) and [CVE-2026-78662](https://avd.aquasec.com/nvd/cve-2026-78662) (MEDIUM, denial of service). This code never calls `ssh`, so `govulncheck` treats all three as unreachable, but the module is recorded in the binary's build info and Trivy gates on module version, not reachability. The rest of the `golang.org/x/*` set moves with it: `mod` `v0.38.0`, `net` `v0.57.0`, `sync` `v0.22.0`, `sys` `v0.47.0`, `tools` `v0.48.0`.
+- Go 1.26.4 → 1.26.8, clearing six standard-library advisories reachable from this code: [GO-2026-6218](https://pkg.go.dev/vuln/GO-2026-6218), [GO-2026-6090](https://pkg.go.dev/vuln/GO-2026-6090), [GO-2026-6089](https://pkg.go.dev/vuln/GO-2026-6089) and [GO-2026-5026](https://pkg.go.dev/vuln/GO-2026-5026) in `net/http`, [GO-2026-6088](https://pkg.go.dev/vuln/GO-2026-6088) in `encoding/xml`, and [GO-2026-5972](https://pkg.go.dev/vuln/GO-2026-5972) in `encoding/asn1`. The `test` job and the image build take their toolchain from `go.mod`, so the `go` directive governs both. Note the `govulncheck` job does not: `golang/govulncheck-action` defaults `go-version` to `stable`, which overrides the `go-version-file: go.mod` the workflow passes, so that job runs on whatever Go is current (1.27.1 today) no matter what this directive says.
+- Dockerfile `golang:1.26` builder digest refreshed to the image carrying Go 1.26.8, keeping the pinned base in step with the `go` directive so image builds don't fetch a toolchain at build time.
+
+
 ## [1.2.2] - 2026-06-15
 
 ### Added

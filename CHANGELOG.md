@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2026-10-22
+
+### Changed
+
+- Bumped `github.com/Azure/azure-sdk-for-go/sdk/azcore` from `v1.23.1` to `v1.23.3` and `sdk/azidentity` from `v1.14.1` to `v1.15.0` (Dependabot #27, #28); `sdk/internal` `v1.12.0` → `v1.13.0` and `microsoft-authentication-library-for-go` `v1.8.0` → `v1.10.1` come along as their requirements. The `azidentity` release adds Azure Arc user-assigned identities and `WorkloadIdentityCredential` identity binding, and hardens the Service Fabric managed-identity endpoint; none of that changes how this app authenticates (`DefaultAzureCredential` in Container Apps).
+- Bumped `software.sslmate.com/src/go-pkcs12` from `v0.7.3` to `v0.7.4` (Dependabot #26).
+- Runtime base image `gcr.io/distroless/static:nonroot` digest `f7f8f72` → `e2e927e` (Dependabot #22). Package changes: `base-files` `13.8+deb13u6` → `13.8+deb13u7` and `tzdata` / `tzdata-legacy` `2026b` → `2026c`. `netbase` and `media-types` are unchanged, and the CA bundle is byte-identical (150 certificates, same hash), so the set of roots the ACME client trusts does not move.
+- CI: `anchore/sbom-action` `v0.24.2` → `v0.24.3` (Dependabot #25, already merged to `main`).
+- CI: `golangci-lint` `v2.13.2` → `v2.15.0`. On Go 1.27.3, v2.13.2 fails every package with `typecheck` errors because it cannot read the toolchain's newer export data (`export data version 5 is greater than maximum supported version 4`). v2.15.0 reads it and reports no issues.
+
+### Security
+
+- Go 1.27.1 → 1.27.3, fixing [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809) in `crypto/x509`, which `govulncheck` reports as reachable. The Dockerfile `golang:1.27` builder is pinned to the digest carrying 1.27.3 (`f20d83a`). This supersedes Dependabot #23: its digest (`3680233`) was only a Debian refresh of the image that still ships Go 1.27.1.
+- Bumped `golang.org/x/net` from `v0.58.0` to `v0.60.0`, fixing five advisories `govulncheck` reports as reachable: [GO-2026-6603](https://pkg.go.dev/vuln/GO-2026-6603), [GO-2026-6610](https://pkg.go.dev/vuln/GO-2026-6610), [GO-2026-6611](https://pkg.go.dev/vuln/GO-2026-6611), [GO-2026-6612](https://pkg.go.dev/vuln/GO-2026-6612) and [GO-2026-6617](https://pkg.go.dev/vuln/GO-2026-6617). These were already failing the `govulncheck` job on `main` and on every open Dependabot PR. The rest of the `golang.org/x/*` set moves with it: `crypto` `v0.57.0`, `mod` `v0.41.0`, `sync` `v0.23.0`, `sys` `v0.48.0`, `text` `v0.42.0`, `tools` `v0.49.0`.
+- `govulncheck` still lists [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932) (the unmaintained `x/crypto/openpgp` package) as present in a required module. It has no fix, and this code never imports the package, so the job does not fail on it.
+
 ## [1.2.5] - 2026-09-10
 
 ### Changed

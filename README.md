@@ -188,8 +188,20 @@ go test -race -cover ./...   # tests
 go vet ./...                 # static analysis
 gofmt -l .                   # formatting check
 golangci-lint run            # lint (CI pins golangci-lint v2)
-go build .                   # binary
+go build ./cmd/acme-az-aca   # binary
 e2e/run.sh                   # end-to-end test (Docker + jq)
+```
+
+### Layout
+
+```text
+cmd/acme-az-aca/    entry point: wiring, renewal loop, HTTP server, /status
+internal/config/    environment variables → Config, with validation
+internal/acme/      lego client, ACME account, HTTP-01 challenge handler
+internal/keyvault/  renewal decision, ACME account key, certificate import
+internal/pfx/       PEM → PFX conversion, private key parsing
+internal/notify/    SMTP error notifications
+e2e/                end-to-end test (see below)
 ```
 
 ### End-to-end test

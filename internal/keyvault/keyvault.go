@@ -1,9 +1,10 @@
-package main
+// Package keyvault reads and writes the certificate and the ACME account key
+// in Azure Key Vault.
+package keyvault
 
 import (
 	"context"
 	"crypto"
-	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -18,7 +19,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
-	gopkcs12 "software.sslmate.com/src/go-pkcs12"
+
+	"github.com/emilgruzalski/acme-az-aca/internal/pfx"
 )
 
 func isNotFound(err error) bool {
@@ -26,12 +28,12 @@ func isNotFound(err error) bool {
 	return errors.As(err, &respErr) && respErr.StatusCode == http.StatusNotFound
 }
 
-// checkIfRenewalNeeded reports whether a new certificate must be obtained:
+// NeedsRenewal reports whether a new certificate must be obtained:
 // none exists yet, the existing one doesn't cover all configured domains, or
 // it expires within the renewal window. A missing certificate (404) is the
 // normal first-run path; any other Key Vault error aborts the cycle so a
 // transient outage doesn't trigger a needless reissue against LE rate limits.
-func checkIfRenewalNeeded(ctx context.Context, client *azcertificates.Client, certName string, domains []string, renewBeforeDays int) (bool, error) {
+func NeedsRenewal(ctx context.Context, client *azcertificates.Client, certName string, domains []string, renewBeforeDays int) (bool, error) {
 	cert, err := client.GetCertificate(ctx, certName, "", nil)
 	if err != nil {
 		if isNotFound(err) {
@@ -85,12 +87,12 @@ func domainsMissingFromCert(der []byte, domains []string) []string {
 	return missing
 }
 
-// acmeAccountKey returns the ACME account key persisted in Key Vault,
+// AccountKey returns the ACME account key persisted in Key Vault,
 // creating and storing one on first run so restarts reuse the same LE
 // account instead of registering a new one (LE limits new registrations).
 // Persistence failures fall back to an ephemeral key so missing secret
 // permissions never block certificate renewal.
-func acmeAccountKey(ctx context.Context, secrets *azsecrets.Client, secretName string) (crypto.PrivateKey, error) {
+func AccountKey(ctx context.Context, secrets *azsecrets.Client, secretName string) (crypto.PrivateKey, error) {
 	if secretName == "" {
 		slog.Info("acme account key persistence disabled, using ephemeral account")
 		return rsa.GenerateKey(rand.Reader, 2048)
@@ -146,71 +148,11 @@ func parseAccountKeyPEM(pemBytes []byte) (crypto.PrivateKey, error) {
 	if block == nil {
 		return nil, fmt.Errorf("no PEM block found")
 	}
-	return parsePrivateKey(block.Bytes)
+	return pfx.ParsePrivateKey(block.Bytes)
 }
 
-func convertToPFX(certPEM, keyPEM []byte, password string) ([]byte, error) {
-	keyBlock, _ := pem.Decode(keyPEM)
-	if keyBlock == nil {
-		return nil, fmt.Errorf("failed to decode private key PEM")
-	}
-
-	privateKey, err := parsePrivateKey(keyBlock.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("parsing private key: %w", err)
-	}
-
-	var certs []*x509.Certificate
-	rest := certPEM
-	for {
-		var block *pem.Block
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			break
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("parsing certificate: %w", err)
-		}
-		certs = append(certs, cert)
-	}
-	if len(certs) == 0 {
-		return nil, fmt.Errorf("no certificates found in PEM data")
-	}
-
-	leaf := certs[0]
-	var caCerts []*x509.Certificate
-	if len(certs) > 1 {
-		caCerts = certs[1:]
-	}
-
-	pfxData, err := gopkcs12.Modern.Encode(privateKey, leaf, caCerts, password)
-	if err != nil {
-		return nil, fmt.Errorf("encoding PFX: %w", err)
-	}
-
-	return pfxData, nil
-}
-
-// parsePrivateKey tries PKCS1 (RSA), PKCS8 (RSA/ECDSA), and SEC1 (ECDSA) formats.
-func parsePrivateKey(der []byte) (any, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
-		return key, nil
-	}
-	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
-		switch key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey:
-			return key, nil
-		}
-		return nil, fmt.Errorf("unsupported key type in PKCS8 block")
-	}
-	if key, err := x509.ParseECPrivateKey(der); err == nil {
-		return key, nil
-	}
-	return nil, fmt.Errorf("unrecognized private key format (tried PKCS1, PKCS8, EC)")
-}
-
-func uploadToKeyVault(ctx context.Context, client *azcertificates.Client, certName string, pfxData []byte, password string) error {
+// ImportCertificate imports a PFX into Key Vault as a new version of certName.
+func ImportCertificate(ctx context.Context, client *azcertificates.Client, certName string, pfxData []byte, password string) error {
 	certString := base64.StdEncoding.EncodeToString(pfxData)
 	_, err := client.ImportCertificate(ctx, certName, azcertificates.ImportCertificateParameters{
 		Base64EncodedCertificate: &certString,

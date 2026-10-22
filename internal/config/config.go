@@ -1,4 +1,5 @@
-package main
+// Package config loads and validates the environment configuration.
+package config
 
 import (
 	"fmt"
@@ -7,7 +8,8 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-type config struct {
+// Config is the runtime configuration, read from environment variables.
+type Config struct {
 	// Required
 	Domains      []string `envconfig:"DOMAINS" required:"true"`
 	Email        string   `envconfig:"EMAIL" required:"true"`
@@ -35,8 +37,9 @@ type config struct {
 	SMTPTo        string `envconfig:"SMTP_TO"`
 }
 
-func loadConfig() (config, error) {
-	var cfg config
+// Load reads the configuration from the environment and validates it.
+func Load() (Config, error) {
+	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		return cfg, err
 	}

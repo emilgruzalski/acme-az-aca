@@ -1,15 +1,15 @@
+// Command acme-az-aca issues and renews Let's Encrypt certificates for Azure
+// Container Apps and imports them into Azure Key Vault.
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -18,47 +18,13 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/lego"
+
+	"github.com/emilgruzalski/acme-az-aca/internal/acme"
+	"github.com/emilgruzalski/acme-az-aca/internal/config"
+	"github.com/emilgruzalski/acme-az-aca/internal/keyvault"
+	"github.com/emilgruzalski/acme-az-aca/internal/notify"
+	"github.com/emilgruzalski/acme-az-aca/internal/pfx"
 )
-
-// cycleStatus tracks the outcome of the last renewal cycle and serves it as
-// JSON, so a failing renewal is observable without digging through logs.
-type cycleStatus struct {
-	mu          sync.Mutex
-	lastCheck   time.Time
-	lastSuccess time.Time
-	lastError   string
-}
-
-func (s *cycleStatus) record(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.lastCheck = time.Now().UTC()
-	if err != nil {
-		s.lastError = err.Error()
-		return
-	}
-	s.lastSuccess = s.lastCheck
-	s.lastError = ""
-}
-
-func (s *cycleStatus) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	resp := struct {
-		Healthy     bool       `json:"healthy"`
-		LastCheck   *time.Time `json:"last_check,omitempty"`
-		LastSuccess *time.Time `json:"last_success,omitempty"`
-		LastError   string     `json:"last_error,omitempty"`
-	}{Healthy: s.lastError == "", LastError: s.lastError}
-	if !s.lastCheck.IsZero() {
-		resp.LastCheck = &s.lastCheck
-	}
-	if !s.lastSuccess.IsZero() {
-		resp.LastSuccess = &s.lastSuccess
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
-}
 
 func main() {
 	if err := run(); err != nil {
@@ -68,7 +34,7 @@ func main() {
 }
 
 func run() error {
-	cfg, err := loadConfig()
+	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
@@ -91,7 +57,11 @@ func run() error {
 		return fmt.Errorf("key vault secrets client: %w", err)
 	}
 
-	legoClient, challenge, err := newACMEClient(ctx, cfg, secretsClient)
+	accountKey, err := keyvault.AccountKey(ctx, secretsClient, cfg.AccountSecretName)
+	if err != nil {
+		return fmt.Errorf("acme account key: %w", err)
+	}
+	legoClient, challenge, err := acme.NewClient(cfg.Email, cfg.ACMECAURL, accountKey)
 	if err != nil {
 		return err
 	}
@@ -131,7 +101,7 @@ func run() error {
 		status.record(err)
 		if err != nil {
 			slog.Error("certificate cycle failed", "domains", cfg.Domains, "error", err)
-			notifyOnError(cfg, "Certificate Processing Error",
+			notify.OnError(cfg, "Certificate Processing Error",
 				fmt.Sprintf("Domains: %v\n\n%v", cfg.Domains, err))
 			return min(cfg.RetryInterval, cfg.CheckInterval)
 		}
@@ -156,8 +126,8 @@ func run() error {
 	}
 }
 
-func processCertificates(ctx context.Context, legoClient *lego.Client, kvClient *azcertificates.Client, cfg config) error {
-	needsRenewal, err := checkIfRenewalNeeded(ctx, kvClient, cfg.CertName, cfg.Domains, cfg.RenewBeforeDays)
+func processCertificates(ctx context.Context, legoClient *lego.Client, kvClient *azcertificates.Client, cfg config.Config) error {
+	needsRenewal, err := keyvault.NeedsRenewal(ctx, kvClient, cfg.CertName, cfg.Domains, cfg.RenewBeforeDays)
 	if err != nil {
 		return fmt.Errorf("checking renewal: %w", err)
 	}
@@ -174,12 +144,12 @@ func processCertificates(ctx context.Context, legoClient *lego.Client, kvClient 
 		return fmt.Errorf("obtaining certificate: %w", err)
 	}
 
-	pfx, err := convertToPFX(resource.Certificate, resource.PrivateKey, cfg.PFXPassword)
+	pfxData, err := pfx.Encode(resource.Certificate, resource.PrivateKey, cfg.PFXPassword)
 	if err != nil {
 		return fmt.Errorf("converting to PFX: %w", err)
 	}
 
-	if err := uploadToKeyVault(ctx, kvClient, cfg.CertName, pfx, cfg.PFXPassword); err != nil {
+	if err := keyvault.ImportCertificate(ctx, kvClient, cfg.CertName, pfxData, cfg.PFXPassword); err != nil {
 		return fmt.Errorf("uploading to key vault: %w", err)
 	}
 

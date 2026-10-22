@@ -1,4 +1,5 @@
-package main
+// Package notify sends error notifications over SMTP.
+package notify
 
 import (
 	"crypto/tls"
@@ -7,15 +8,17 @@ import (
 	"net"
 	"net/smtp"
 	"time"
+
+	"github.com/emilgruzalski/acme-az-aca/internal/config"
 )
 
 // smtpTimeout bounds the whole SMTP session; notifications are sent from the
 // renewal loop, so a hung server must not stall certificate processing.
 const smtpTimeout = 30 * time.Second
 
-// notifyOnError sends an SMTP error notification when enabled, and logs
+// OnError sends an SMTP error notification when enabled, and logs
 // (but does not propagate) any failure delivering it.
-func notifyOnError(cfg config, subject, message string) {
+func OnError(cfg config.Config, subject, message string) {
 	if !cfg.NotifyEnabled {
 		return
 	}
@@ -26,7 +29,7 @@ func notifyOnError(cfg config, subject, message string) {
 
 // sendErrorNotification speaks SMTP by hand instead of smtp.SendMail because
 // SendMail dials and reads with no timeout.
-func sendErrorNotification(cfg config, subject, message string) error {
+func sendErrorNotification(cfg config.Config, subject, message string) error {
 	if cfg.SMTPHost == "" || cfg.SMTPUsername == "" || cfg.SMTPPassword == "" {
 		return fmt.Errorf("incomplete SMTP configuration")
 	}

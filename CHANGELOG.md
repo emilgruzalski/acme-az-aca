@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Source layout: the entry point moves to `cmd/acme-az-aca/` and the logic into packages under `internal/` (`config`, `acme`, `keyvault`, `pfx`, `notify`), so the repo root holds only project files. Behavior is unchanged, and the binary and image are built the same way except for the package path (`go build ./cmd/acme-az-aca`). `acme.NewClient` now takes the ACME account key instead of a Key Vault client, so the ACME package no longer depends on Azure.
 - README: the `cosign verify` example now pins the signer identity to `ci.yml` on a `vX.Y.Z` tag. The old `--certificate-identity-regexp 'https://github.com/emilgruzalski/acme-az-aca/'` was unanchored and accepted a signature from any workflow on any branch of the repo. Checked against the published `1.2.4`, `1.2.5`, `1.2.6` and `latest` images: the new identity still verifies all of them, and a signature from another workflow is rejected.
 
 ## [1.2.6] - 2026-10-22

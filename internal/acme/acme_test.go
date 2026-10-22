@@ -1,4 +1,4 @@
-package main
+package acme
 
 import (
 	"crypto/rand"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestChallengeProvider_PresentAndCleanUp(t *testing.T) {
-	p := &challengeProvider{tokens: make(map[string]string)}
+	p := &ChallengeProvider{tokens: make(map[string]string)}
 
 	if err := p.Present("example.com", "token1", "keyauth1"); err != nil {
 		t.Fatalf("Present: %v", err)
@@ -37,7 +37,7 @@ func TestChallengeProvider_PresentAndCleanUp(t *testing.T) {
 }
 
 func TestChallengeProvider_ServeHTTP(t *testing.T) {
-	p := &challengeProvider{tokens: make(map[string]string)}
+	p := &ChallengeProvider{tokens: make(map[string]string)}
 	_ = p.Present("example.com", "mytoken", "mykeyauth")
 
 	tests := []struct {

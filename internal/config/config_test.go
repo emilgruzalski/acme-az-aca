@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"testing"
@@ -19,7 +19,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("DOMAINS", "")
 		t.Setenv("EMAIL", "test@example.com")
 		t.Setenv("AZURE_KEYVAULT_NAME", "myvault")
-		if _, err := loadConfig(); err == nil {
+		if _, err := Load(); err == nil {
 			t.Error("expected error")
 		}
 	})
@@ -28,7 +28,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("DOMAINS", "example.com")
 		t.Setenv("EMAIL", "")
 		t.Setenv("AZURE_KEYVAULT_NAME", "myvault")
-		if _, err := loadConfig(); err == nil {
+		if _, err := Load(); err == nil {
 			t.Error("expected error")
 		}
 	})
@@ -37,7 +37,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("DOMAINS", "example.com")
 		t.Setenv("EMAIL", "test@example.com")
 		t.Setenv("AZURE_KEYVAULT_NAME", "")
-		if _, err := loadConfig(); err == nil {
+		if _, err := Load(); err == nil {
 			t.Error("expected error")
 		}
 	})
@@ -53,7 +53,7 @@ func TestLoadConfig(t *testing.T) {
 			t.Run(tc.key+"="+tc.value, func(t *testing.T) {
 				setRequired(t)
 				t.Setenv(tc.key, tc.value)
-				if _, err := loadConfig(); err == nil {
+				if _, err := Load(); err == nil {
 					t.Errorf("expected error for %s=%s", tc.key, tc.value)
 				}
 			})
@@ -62,7 +62,7 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("defaults", func(t *testing.T) {
 		setRequired(t)
-		cfg, err := loadConfig()
+		cfg, err := Load()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -108,7 +108,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("SMTP_FROM", "noreply@example.com")
 		t.Setenv("SMTP_TO", "ops@example.com")
 
-		cfg, err := loadConfig()
+		cfg, err := Load()
 		if err != nil {
 			t.Fatal(err)
 		}

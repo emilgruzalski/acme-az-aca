@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped `software.sslmate.com/src/go-pkcs12` from `v0.7.3` to `v0.7.4` (Dependabot #26).
 - Runtime base image `gcr.io/distroless/static:nonroot` digest `f7f8f72` → `e2e927e` (Dependabot #22). Package changes: `base-files` `13.8+deb13u6` → `13.8+deb13u7` and `tzdata` / `tzdata-legacy` `2026b` → `2026c`. `netbase` and `media-types` are unchanged, and the CA bundle is byte-identical (150 certificates, same hash), so the set of roots the ACME client trusts does not move.
 - CI: `anchore/sbom-action` `v0.24.2` → `v0.24.3` (Dependabot #25, already merged to `main`).
+- CI: `golangci-lint` `v2.13.2` → `v2.15.0`. On Go 1.27.3, v2.13.2 fails every package with `typecheck` errors because it cannot read the toolchain's newer export data (`export data version 5 is greater than maximum supported version 4`). v2.15.0 reads it and reports no issues.
 
 ### Security
 

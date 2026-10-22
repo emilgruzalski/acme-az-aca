@@ -25,17 +25,22 @@ fail() { echo "FAIL: $*" >&2; failed=1; exit 1; }
 kv_state() { curl -fsS "http://127.0.0.1:$E2E_KV_PORT/e2e/state"; }
 app_status() { curl -fsS "http://127.0.0.1:$E2E_APP_PORT/status"; }
 
+# Logs are read into a variable before matching: piping them into grep -q
+# under pipefail fails spuriously when grep exits early and docker gets SIGPIPE.
+app_logs() { compose logs --no-color app 2>/dev/null || true; }
+log_has() { grep -Eq "$1" <<<"$(app_logs)"; }
+
 # wait_log PATTERN [TIMEOUT]: wait for the app's log to match an extended regex.
 wait_log() {
   local deadline=$((SECONDS + ${2:-90}))
-  until compose logs --no-color app 2>/dev/null | grep -Eq "$1"; do
+  until log_has "$1"; do
     [ $SECONDS -lt $deadline ] || fail "app log never matched: $1"
     sleep 1
   done
 }
 
 assert_log() {
-  compose logs --no-color app | grep -Eq "$1" || fail "app log does not contain: $1"
+  log_has "$1" || fail "app log does not contain: $1"
 }
 
 # start_app [VAR=value...]: (re)create the app container with extra settings.
@@ -103,7 +108,7 @@ compose stop kv >/dev/null
 start_app E2E_DOMAINS=$domains3
 wait_log 'certificate cycle failed|certificate renewed|still valid' 180
 assert_log 'checking renewal: getting certificate'
-if compose logs --no-color app | grep -q 'Obtaining bundled SAN certificate'; then
+if log_has 'Obtaining bundled SAN certificate'; then
   fail "a certificate was requested during the outage"
 fi
 echo "ok: no certificate requested"

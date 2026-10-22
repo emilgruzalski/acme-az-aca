@@ -61,8 +61,29 @@ jobs:
           go-version-input: ''
           go-version-file: go.mod
 
+  # Full renewal cycles of the real image against Pebble and a mock Key Vault;
+  # see e2e/compose.yaml. Gates the image push like the other checks.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: e2e/mockkv/go.mod
+
+      - name: Vet mock Key Vault
+        working-directory: e2e/mockkv
+        run: |
+          go mod tidy -diff
+          go vet ./...
+
+      - name: End-to-end test
+        run: e2e/run.sh
+
   image:
-    needs: [test, govulncheck]
+    needs: [test, govulncheck, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

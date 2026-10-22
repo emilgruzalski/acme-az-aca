@@ -1,0 +1,73 @@
+# End-to-end test environment, driven by run.sh. The app image is built from
+# the repo Dockerfile and runs unchanged; only its endpoints are redirected:
+#   - ACME CA        -> Pebble, validating HTTP-01 on the app's port 80
+#   - DNS            -> challtestsrv, resolving every name to the app
+#   - Key Vault + MI -> mockkv, aliased as testkv.vault.azure.net
+name: acme-e2e
+
+services:
+  dns:
+    image: ghcr.io/letsencrypt/pebble-challtestsrv:2.10.1@sha256:12ce21884def456bcf9786542113949e1f19dc7738d2c70e156c2d0c38a1405b
+    command: [-defaultIPv4, 10.30.0.10, -defaultIPv6, '', -dnsserver, ':8053',
+              -http01, '', -https01, '', -tlsalpn01, '', -doh, '']
+    networks:
+      e2e: { ipv4_address: 10.30.0.3 }
+
+  pebble:
+    image: ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199
+    command: [-config, /config.json, -dnsserver, '10.30.0.3:8053']
+    environment:
+      PEBBLE_VA_NOSLEEP: '1'
+    volumes:
+      - ./pebble-config.json:/config.json:ro
+    networks:
+      e2e: { ipv4_address: 10.30.0.2 }
+
+  kv:
+    build: ./mockkv
+    environment:
+      KV_HOST: testkv.vault.azure.net
+      CA_OUT: /shared/mockkv-ca.pem
+      PEBBLE_ROOT_URL: https://pebble:15000/roots/0
+      PEBBLE_CA: /pebble.minica.pem
+    volumes:
+      - ./pebble.minica.pem:/pebble.minica.pem:ro
+      - shared:/shared
+    ports:
+      - 127.0.0.1:${E2E_KV_PORT:-18081}:8081
+    networks:
+      e2e:
+        ipv4_address: 10.30.0.4
+        aliases: [testkv.vault.azure.net]
+
+  app:
+    image: ${E2E_IMAGE:-acme-az-aca:e2e}
+    build: ..
+    environment:
+      DOMAINS: ${E2E_DOMAINS:-dev.example.test,prd.example.test}
+      EMAIL: e2e@example.test
+      AZURE_KEYVAULT_NAME: testkv
+      ACME_CA_URL: https://pebble:14000/dir
+      RENEW_BEFORE_DAYS: ${E2E_RENEW_BEFORE_DAYS:-30}
+      # Managed identity the way Container Apps provides it.
+      IDENTITY_ENDPOINT: http://10.30.0.4:8081/msi/token
+      IDENTITY_HEADER: e2e-identity-header
+      # Trust mockkv's CA for Key Vault and Pebble's CA for ACME.
+      SSL_CERT_FILE: /shared/mockkv-ca.pem
+      LEGO_CA_CERTIFICATES: /pebble.minica.pem
+    volumes:
+      - ./pebble.minica.pem:/pebble.minica.pem:ro
+      - shared:/shared:ro
+    ports:
+      - 127.0.0.1:${E2E_APP_PORT:-18080}:80
+    networks:
+      e2e: { ipv4_address: 10.30.0.10 }
+
+volumes:
+  shared:
+
+networks:
+  e2e:
+    ipam:
+      config:
+        - subnet: 10.30.0.0/24

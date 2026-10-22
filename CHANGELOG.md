@@ -8,8 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- End-to-end test ([`e2e/`](e2e)): the real image runs full renewal cycles against Pebble (Let's Encrypt's test CA, with real HTTP-01 validation) and a mock Key Vault and managed identity endpoint. The mock rejects a PFX whose key does not match the leaf or whose chain does not verify. It covers first issuance, a restart that reuses the account key, a reissue on a new domain, a renewal inside the window, a Key Vault outage, and SIGTERM. It runs in CI as the `e2e` job and gates the image push. Dependabot also tracks the mock's Go module, its Dockerfile and the pinned Pebble images.
 - CI: the release job runs `cosign verify` right after `cosign sign`, against the exact identity it signs as (`ci.yml@refs/tags/<tag>`). A signature that cannot be verified now fails the job before the GitHub Release is created. Until now, signing was never checked.
 - `scan.yml` verifies the signature of the published `:latest` image every week, before the Trivy rescan.
+
+### Fixed
+
+- `/status` now includes `last_error` after a failed cycle, as the README documents. The field was declared but never filled in, so a failing renewal showed only `"healthy": false` with no reason. The new end-to-end test caught it.
 
 ### Changed
 

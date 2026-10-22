@@ -189,9 +189,19 @@ go vet ./...                 # static analysis
 gofmt -l .                   # formatting check
 golangci-lint run            # lint (CI pins golangci-lint v2)
 go build .                   # binary
+e2e/run.sh                   # end-to-end test (Docker + jq)
 ```
 
-CI ([ci.yml](.github/workflows/ci.yml)) runs the same checks plus a `go mod tidy` check, `govulncheck`, and a Docker build gated by a Trivy CVE scan on every push and PR. On `v*` tags the image is pushed to ghcr.io with an SPDX SBOM and provenance attestations, signed with cosign (and the signature verified in the same job), and a GitHub Release is created with the changelog section as notes and the SBOM attached. A separate weekly workflow ([scan.yml](.github/workflows/scan.yml)) re-verifies the **published** image's signature and rescans the image and the Go dependencies, so CVEs discovered after a release surface without a commit.
+### End-to-end test
+
+[`e2e/run.sh`](e2e/run.sh) builds the image and runs full renewal cycles against it, with no Azure account or public port needed. The app runs unchanged; [`e2e/compose.yaml`](e2e/compose.yaml) only redirects what it talks to:
+
+- **ACME**: [Pebble](https://github.com/letsencrypt/pebble), Let's Encrypt's test CA, which really validates HTTP-01 against the app's port 80. `pebble-challtestsrv` resolves the test domains to the app.
+- **Key Vault and managed identity**: [`e2e/mockkv`](e2e/mockkv), served as `testkv.vault.azure.net` inside the compose network. It speaks the Key Vault protocol the SDK uses, including the 401 bearer challenge, and the managed identity token endpoint Container Apps provides. On import it rejects a PFX whose key does not match the leaf or whose chain does not verify to Pebble's root.
+
+The scenarios are: first issuance (with the ACME account key persisted), a restart that reuses the key and skips a valid cert, a reissue when a domain is added to `DOMAINS`, a renewal inside the `RENEW_BEFORE_DAYS` window, a Key Vault outage that aborts the cycle without requesting a cert and turns `/status` unhealthy, and a clean shutdown on SIGTERM. Real RBAC, the real vault's PFX parsing and Container Apps ingress are out of scope; test those against the LE staging CA (see [Troubleshooting](#troubleshooting)).
+
+CI ([ci.yml](.github/workflows/ci.yml)) runs the same checks plus a `go mod tidy` check, `govulncheck`, the end-to-end test, and a Docker build gated by a Trivy CVE scan on every push and PR. On `v*` tags the image is pushed to ghcr.io with an SPDX SBOM and provenance attestations, signed with cosign (and the signature verified in the same job), and a GitHub Release is created with the changelog section as notes and the SBOM attached. A separate weekly workflow ([scan.yml](.github/workflows/scan.yml)) re-verifies the **published** image's signature and rescans the image and the Go dependencies, so CVEs discovered after a release surface without a commit.
 
 ## License
 

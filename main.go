@@ -49,7 +49,7 @@ func (s *cycleStatus) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 		LastCheck   *time.Time `json:"last_check,omitempty"`
 		LastSuccess *time.Time `json:"last_success,omitempty"`
 		LastError   string     `json:"last_error,omitempty"`
-	}{Healthy: s.lastError == ""}
+	}{Healthy: s.lastError == "", LastError: s.lastError}
 	if !s.lastCheck.IsZero() {
 		resp.LastCheck = &s.lastCheck
 	}

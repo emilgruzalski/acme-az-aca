@@ -4,3 +4,4 @@
 LICENSE
 Dockerfile
 .dockerignore
+e2e

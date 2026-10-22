@@ -161,6 +161,18 @@ jobs:
           DIGEST: ${{ steps.push.outputs.digest }}
         run: cosign sign --yes "ghcr.io/${{ github.repository }}@${DIGEST}"
 
+      # Verify with the exact identity this run signs as (ci.yml at this tag),
+      # so a broken signature fails the job before the release job runs.
+      - name: Verify image signature
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign verify "ghcr.io/${{ github.repository }}@${DIGEST}" \
+            --certificate-identity "${{ github.server_url }}/${{ github.repository }}/.github/workflows/ci.yml@${{ github.ref }}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            > /dev/null
+
   release:
     needs: image
     if: startsWith(github.ref, 'refs/tags/v')

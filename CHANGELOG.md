@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- CI: the release job runs `cosign verify` right after `cosign sign`, against the exact identity it signs as (`ci.yml@refs/tags/<tag>`). A signature that cannot be verified now fails the job before the GitHub Release is created. Until now, signing was never checked.
+- `scan.yml` verifies the signature of the published `:latest` image every week, before the Trivy rescan.
+
+### Changed
+
+- README: the `cosign verify` example now pins the signer identity to `ci.yml` on a `vX.Y.Z` tag. The old `--certificate-identity-regexp 'https://github.com/emilgruzalski/acme-az-aca/'` was unanchored and accepted a signature from any workflow on any branch of the repo. Checked against the published `1.2.4`, `1.2.5`, `1.2.6` and `latest` images: the new identity still verifies all of them, and a signature from another workflow is rejected.
+
 ## [1.2.6] - 2026-10-22
 
 ### Changed

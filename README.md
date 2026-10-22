@@ -167,7 +167,15 @@ The import itself usually succeeds — check the container logs for `importing c
 
 ```bash
 cosign verify ghcr.io/emilgruzalski/acme-az-aca:latest \
-  --certificate-identity-regexp 'https://github.com/emilgruzalski/acme-az-aca/' \
+  --certificate-identity-regexp '^https://github\.com/emilgruzalski/acme-az-aca/\.github/workflows/ci\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+The identity pins the signer to the release job: `ci.yml` running on a `v*` version tag. A signature made by any other workflow or from a branch is rejected. To verify one specific release, pass its exact identity instead:
+
+```bash
+cosign verify ghcr.io/emilgruzalski/acme-az-aca:1.2.6 \
+  --certificate-identity https://github.com/emilgruzalski/acme-az-aca/.github/workflows/ci.yml@refs/tags/v1.2.6 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -183,7 +191,7 @@ golangci-lint run            # lint (CI pins golangci-lint v2)
 go build .                   # binary
 ```
 
-CI ([ci.yml](.github/workflows/ci.yml)) runs the same checks plus a `go mod tidy` check, `govulncheck`, and a Docker build gated by a Trivy CVE scan on every push and PR. On `v*` tags the image is pushed to ghcr.io with an SPDX SBOM and provenance attestations, signed with cosign, and a GitHub Release is created with the changelog section as notes and the SBOM attached. A separate weekly workflow ([scan.yml](.github/workflows/scan.yml)) rescans the **published** image and the Go dependencies, so CVEs discovered after a release surface without a commit.
+CI ([ci.yml](.github/workflows/ci.yml)) runs the same checks plus a `go mod tidy` check, `govulncheck`, and a Docker build gated by a Trivy CVE scan on every push and PR. On `v*` tags the image is pushed to ghcr.io with an SPDX SBOM and provenance attestations, signed with cosign (and the signature verified in the same job), and a GitHub Release is created with the changelog section as notes and the SBOM attached. A separate weekly workflow ([scan.yml](.github/workflows/scan.yml)) re-verifies the **published** image's signature and rescans the image and the Go dependencies, so CVEs discovered after a release surface without a commit.
 
 ## License
 

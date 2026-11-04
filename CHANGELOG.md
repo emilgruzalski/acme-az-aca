@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-11-04
+
+### Changed
+
+- The wait between renewal cycles (`CHECK_INTERVAL`, and `RETRY_INTERVAL` after a failure) is now randomized by ±10%, so a 24h interval lands anywhere between 21.6h and 26.4h. Until now every instance re-checked exactly one interval after its previous cycle, so apps deployed together by one pipeline, or restarted together by the platform, stayed in lockstep and contacted Let's Encrypt in the same second every day. Let's Encrypt asks ACME clients to renew at randomized times. Each cycle now logs when the next check is due.
+
+### Security
+
+- Bumped `github.com/go-jose/go-jose/v4` (indirect, via `lego`) from `v4.1.4` to `v4.1.7`. `v4.1.4` carries [CVE-2026-116587](https://avd.aquasec.com/nvd/cve-2026-116587) ([GHSA-mgcc-cww5-fp2q](https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q), HIGH, denial of service via crafted RSA parameters in JWKs), which the Trivy image gate now reports. It failed the `image` job, and with it the `release` job, on every build. `govulncheck` did not report it as reachable, but Trivy gates on module version, not reachability. `v4.1.6` fixes it by capping the RSA modulus accepted in JWK parsing at 4096 bits; the ACME account key is RSA 2048, so this does not affect it. `v4.1.7` adds fixes for five more advisories: [GHSA-r39w-98wm-9pp6](https://github.com/go-jose/go-jose/security/advisories/GHSA-r39w-98wm-9pp6), [GHSA-27pc-rm86-68pq](https://github.com/go-jose/go-jose/security/advisories/GHSA-27pc-rm86-68pq), [GHSA-p9j4-2j95-j4rv](https://github.com/go-jose/go-jose/security/advisories/GHSA-p9j4-2j95-j4rv), [GHSA-v6h2-qj3f-2h6v](https://github.com/go-jose/go-jose/security/advisories/GHSA-v6h2-qj3f-2h6v) and [GHSA-c67m-wr4h-2ccg](https://github.com/go-jose/go-jose/security/advisories/GHSA-c67m-wr4h-2ccg). `v4.1.8` is skipped: it only adds ML-DSA support, which this app does not need.
+
 ## [1.3.0] - 2026-10-23
 
 ### Added

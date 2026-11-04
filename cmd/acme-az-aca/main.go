@@ -95,17 +95,21 @@ func run() error {
 	)
 
 	// A failed cycle retries after the shorter RetryInterval instead of
-	// waiting out the full CheckInterval.
+	// waiting out the full CheckInterval. Either wait is jittered so that
+	// renewals happen at randomized times.
 	runCheck := func() time.Duration {
 		err := processCertificates(ctx, legoClient, kvClient, cfg)
 		status.record(err)
+		wait := cfg.CheckInterval
 		if err != nil {
 			slog.Error("certificate cycle failed", "domains", cfg.Domains, "error", err)
 			notify.OnError(cfg, "Certificate Processing Error",
 				fmt.Sprintf("Domains: %v\n\n%v", cfg.Domains, err))
-			return min(cfg.RetryInterval, cfg.CheckInterval)
+			wait = min(cfg.RetryInterval, cfg.CheckInterval)
 		}
-		return cfg.CheckInterval
+		wait = jitter(wait)
+		slog.Info("next certificate check scheduled", "in", wait.Round(time.Second))
+		return wait
 	}
 
 	timer := time.NewTimer(runCheck())

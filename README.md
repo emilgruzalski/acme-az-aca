@@ -33,7 +33,7 @@ On each cycle (default: 24h):
 4. Convert PEM → PFX in-memory (no OpenSSL, handles RSA and ECDSA).
 5. Import the PFX into Key Vault. Container Apps picks it up for custom domain bindings.
 
-If any step fails and SMTP is configured, an error notification goes out and the cycle retries after `RETRY_INTERVAL` (default: 1h) instead of waiting out the full check interval. The outcome of the last cycle is exposed as JSON at `/status`.
+If any step fails and SMTP is configured, an error notification goes out and the cycle retries after `RETRY_INTERVAL` (default: 1h) instead of waiting out the full check interval. Both waits are randomized by ±10% (a 24h interval lands anywhere between 21.6h and 26.4h), so instances started together, such as several apps rolled out by one pipeline, drift apart instead of contacting Let's Encrypt at the same moment every day. The outcome of the last cycle is exposed as JSON at `/status`.
 
 The ACME account key is persisted as a Key Vault secret (default name: `acme-account-key`), so restarts reuse the same Let's Encrypt account instead of registering a new one each time — LE rate-limits new registrations per IP.
 
@@ -113,8 +113,8 @@ az containerapp create \
 | --- | --- | --- |
 | `AZURE_CERT_NAME` | `acme-cert` | Certificate name in Key Vault |
 | `ACME_ACCOUNT_SECRET_NAME` | `acme-account-key` | Key Vault secret holding the ACME account key; set empty to disable persistence |
-| `CHECK_INTERVAL` | `24h` | Renewal check interval (Go duration format) |
-| `RETRY_INTERVAL` | `1h` | Retry delay after a failed cycle (capped at `CHECK_INTERVAL`) |
+| `CHECK_INTERVAL` | `24h` | Renewal check interval (Go duration format), randomized by ±10% |
+| `RETRY_INTERVAL` | `1h` | Retry delay after a failed cycle (capped at `CHECK_INTERVAL`), randomized by ±10% |
 | `RENEW_BEFORE_DAYS` | `30` | Days before expiry to trigger renewal |
 | `ACME_CA_URL` | LE production directory | ACME directory URL — point at the LE staging endpoint when testing |
 | `PFX_PASSWORD` | *(empty)* | PFX password |

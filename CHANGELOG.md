@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The wait between renewal cycles (`CHECK_INTERVAL`, and `RETRY_INTERVAL` after a failure) is now randomized by ±10%, so a 24h interval lands anywhere between 21.6h and 26.4h. Until now every instance re-checked exactly one interval after its previous cycle, so apps deployed together by one pipeline, or restarted together by the platform, stayed in lockstep and contacted Let's Encrypt in the same second every day. Let's Encrypt asks ACME clients to renew at randomized times. Each cycle now logs when the next check is due.
+
 ## [1.3.0] - 2026-10-23
 
 ### Added

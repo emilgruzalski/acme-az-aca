@@ -1,6 +1,6 @@
 module github.com/emilgruzalski/acme-az-aca/e2e/mockkv
 
-go 1.27.3
+go 1.27.4
 
 require software.sslmate.com/src/go-pkcs12 v0.7.4
 

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-11-21
+
+### Changed
+
+- Bumped `github.com/Azure/azure-sdk-for-go/sdk/azcore` from `v1.23.3` to `v1.24.0` (Dependabot #42); the `golang.org/x/*` set moves with it: `crypto` `v0.58.0`, `net` `v0.62.0`, `sync` `v0.24.0`, `sys` `v0.49.0`, `text` `v0.43.0`, `tools` `v0.51.0`. The release adds tracing and SSE helpers this app does not use, and redacts request URLs in tracing spans and retry logs with the pipeline's query parameter allow list.
+- Bumped `sdk/security/keyvault/azsecrets` from `v1.5.0` to `v1.5.1` (Dependabot #38). Requests now default to Key Vault API version `2026-04-01`; the app only stores and reads the ACME account key secret with it.
+- Runtime base image `gcr.io/distroless/static:nonroot` digest `e2e927e` → `d620678` (Dependabot #33; #34 for the e2e mock). The only package change is `ca-certificates` `20250419` → `20250419+deb13u1`, which removes two roots from the CA bundle (150 → 148 certificates): Comodo `AAA Certificate Services` and `emSign ECC Root CA - G3`. The roots this app's TLS connections chain to are unchanged: ISRG Root X1/X2 (Let's Encrypt), DigiCert Global Root G2/G3 and Microsoft RSA/ECC Root 2017 (Key Vault, Entra ID). Sectigo certificates chain to `USERTrust RSA/ECC Certification Authority`, which also stay, so an SMTP server for error notifications with a Sectigo certificate still verifies.
+- e2e: Pebble and `pebble-challtestsrv` `2.10.1` → `2.10.3` (Dependabot #40, #41). Test-only: locking and deadlock fixes in Pebble's order handling, ARI serial normalization and ML-DSA support.
+- CI: `sigstore/cosign-installer` `v4.1.2` → `v4.1.3`, which installs Cosign v3.1.4, in `ci.yml` and `scan.yml` (Dependabot #39).
+
+### Security
+
+- Go 1.27.3 → 1.27.4, fixing [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859) (CVE-2026-97054) in `net/http`: an HTTP/1 server could crash on a header race when a `MaxBytesReader` limit is exceeded. `govulncheck` reports it as reachable. It failed the `govulncheck` job on every Dependabot PR since 2026-11-11 and in the weekly `scan.yml` on `main`. The `golang:1.27` builder in the Dockerfile and in the e2e mock is pinned to the digest carrying 1.27.4 (`205c763`), and the `go` directive of both modules follows it. This supersedes Dependabot #36 and #37: their digest (`2920bb1`) is only a Debian refresh of the image that still ships Go 1.27.3.
+- `golang.org/x/net` `v0.60.0` → `v0.62.0` (via `azcore`, above) fixes [CVE-2026-78661](https://avd.aquasec.com/nvd/cve-2026-78661) (HIGH, denial of service in `x/net/html` via crafted HTML input), which the Trivy image gate reported on the published image and which failed the `image` job of the weekly scan. This app does not parse HTML, but Trivy gates on module version, not reachability.
+
 ## [1.3.1] - 2026-11-04
 
 ### Changed
